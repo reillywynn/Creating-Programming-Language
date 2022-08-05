@@ -1,6 +1,5 @@
 package plc.project;
 
-import javax.lang.model.type.NullType;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -34,44 +33,131 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Source ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        print("public class Main {");
+        newline(indent);
+        newline(++indent);
+
+        List<Ast.Field> fields = ast.getFields();
+        if (!ast.getFields().isEmpty()) {
+            for (int i = 0; i < fields.size(); i++) {
+                print(fields.get(i));
+                newline(indent);
+            }
+        }
+        print("public static void main(String[] args) {");
+        newline(++indent);
+        print("System.exit(new Main().main());");
+        newline(--indent);
+        print("}");
+
+        List<Ast.Method> methods = ast.getMethods();
+        for (int i = 0; i < methods.size(); i++) {
+            newline(--indent);
+            newline(++indent);
+            print(methods.get(i));
+        }
+        newline(--indent);
+        newline(indent);
+        print("}");
+        return null;
     }
 
     @Override
     public Void visit(Ast.Field ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        if (!ast.getValue().isPresent()) {
+            print(ast.getVariable().getType().getJvmName(), " ", ast.getVariable().getJvmName(), ";");
+        }
+        else {
+            print(ast.getVariable().getType().getJvmName(), " ", ast.getVariable().getJvmName(), " = ", ast.getValue().get(),";");
+        }
+        return null;
     }
 
     @Override
     public Void visit(Ast.Method ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        String type = Environment.getType(ast.getReturnTypeName().get()).getJvmName();
+        //System.out.println(type);
+        //System.out.println(ast.getFunction().getReturnType().getJvmName());
+        print(type, " ", ast.getName(), "(");
+        List<String> typeNames = ast.getParameterTypeNames();
+        List<String> params = ast.getParameters();
+        for (int i = 0; i < params.size(); i++) {
+            print(convertType(typeNames.get(i)), " ", params.get(i));
+            if (i != params.size() - 1) {
+                print(", ");
+            }
+        }
+        print(") {");
+        List<Ast.Stmt> stmts = ast.getStatements();
+        if (!stmts.isEmpty()) {
+            newline(++indent);
+            for (int i = 0; i < stmts.size(); i++) {
+                if (i != 0) {
+                    newline(indent);
+                }
+                print(stmts.get(i));
+            }
+            newline(--indent);
+        }
+
+        print("}");
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.Expression ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        print(ast.getExpression());
+        print(";");
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.Declaration ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        print(ast.getVariable().getType().getJvmName(), " ", ast.getVariable().getJvmName());
+
+        if (ast.getValue().isPresent()) {
+            print(" = ", ast.getValue().get());
+        }
+        print(";");
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.Assignment ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        print(ast.getReceiver(), " = ", ast.getValue(), ";");
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.If ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //return null;
+        print("if (", ast.getCondition(), ")", " {");
+        newline(++indent);
+        List<Ast.Stmt> stmts = ast.getThenStatements();
+        if (!ast.getThenStatements().isEmpty()) {
+            for (int i = 0; i < stmts.size(); i++) {
+                if (i != 0) {
+                    newline(indent);
+                }
+                print(stmts.get(i));
+            }
+            newline(--indent);
+        }
+        print("}");
+        stmts = ast.getElseStatements();
+        if (!ast.getElseStatements().isEmpty()) {
+            print(" else {");
+            newline(++indent);
+            for (int i = 0; i < stmts.size(); i++) {
+                if (i != 0) {
+                    newline(indent);
+                }
+                print(stmts.get(i));
+            }
+            newline(--indent);
+            print("}");
+        }
+
+        return null;
     }
 
     @Override
@@ -80,9 +166,9 @@ public final class Generator implements Ast.Visitor<Void> {
         String var = ast.getName();
         Ast.Expr val = ast.getValue();
         print("for (", "int ", var, " : ", val, ") {");
-        indent++;
         List<Ast.Stmt> stmts = ast.getStatements();
-        if (!ast.getStatements().isEmpty()) {
+        if (!stmts.isEmpty()) {
+            newline(++indent);
             for (int i = 0; i < stmts.size(); i++) {
                 if (i != 0) {
                     newline(indent);
@@ -193,6 +279,31 @@ public final class Generator implements Ast.Visitor<Void> {
         }
         print(")");
         return null;
+    }
+
+    public String convertType(String t) {
+        switch (t) {
+            case "Any":
+                return "Object";
+            case "Nil":
+                return "Void";
+            case "IntegerIterable":
+                return "Iterable<Integer>";
+            case "Comparable":
+                return "Comparable";
+            case "Boolean":
+                return "boolean";
+            case "Integer":
+                return "int";
+            case "Decimal":
+                return "double";
+            case "Character":
+                return "char";
+            case "String":
+                return "String";
+            default:
+                throw new RuntimeException("Illegal argument type!");
+        }
     }
 
 }
